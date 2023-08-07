@@ -15,34 +15,37 @@ let svg = d3.select("#stat-container")
 function drawCanvas() {
   svg.attr("width", width)
      .attr("height", height)
+    //  Draw Title text 
      .append("text")
-     .attr("x", (width / 2))
+     .attr("x", (width / 2.5))
      .attr("y", 30)
      .attr("id", "title")
-     .text("USA GDP");
+     .text("Doping in Professional Bicycle Racing");
 }
 
-    function generateScales() {
-      heightScale = d3.scaleLinear()
-                      .domain([0, d3.max(items, (d) => d[1])])
-                      .range([0, height - 2 * padding]);
+function generateScales() {
+  // heightScale = d3.scaleLinear()
+  //                 .domain([0, d3.max(items, (d) => d[1])])
+  //                 .range([0, height - 2 * padding]);
 
-      xScale = d3.scaleLinear()
-                 .domain([0, items.length - 1])
-                 .range([padding, width - padding]);                 
-                    
-      let datesArray = items.map((d) =>
-        new Date(d[0])
-      );           
+  // xScale = d3.scaleLinear()
+  //            .domain([0, items.length - 1])
+  //            .range([padding, width - padding]);                 
+                
+  const yearArray = items.map((d) => d["Year"]);
+  const minutesArray = items.map(d =>parseFloat(d["Time"].replace(":",".")));
+  // const dateObjectsArray = yearArray.map(year => new Date(year, 0, 1));
 
-      xAxisScale = d3.scaleTime()
-                     .domain([d3.min(datesArray ), d3.max(datesArray)])
-                     .range([padding, width - padding]);
-                    
-      yAxisScale = d3.scaleLinear()
-                     .domain([0, d3.max(items, (d) => d[1])])
-                     .range([height - padding, padding]);                 
-    }
+  // console.log("years",dateObjectsArray ,"minutes", minutesArray)
+
+  xAxisScale = d3.scaleLinear()
+                  .domain([d3.min(yearArray) - 1, d3.max(yearArray)])
+                  .range([padding, width - padding]);
+                
+  yAxisScale = d3.scaleLinear()
+                  .domain([d3.max(minutesArray), d3.min(minutesArray)])
+                  .range([height - padding, padding]);                 
+}
 
 function generateAxes() {
   let xAxis = d3.axisBottom(xAxisScale);
@@ -60,62 +63,51 @@ function generateAxes() {
      .attr('transform', `translate(${padding}, 0)`);
 }
 
-function generateBars() {
-  let tooltip = d3.select("#stat-container")
-                  .append("div")
-                  .attr("id", "tooltip")
-                  .style("visibility", "hidden")
+function generateDots() {
+  // let tooltip = d3.select("#stat-container")
+  //                 .append("div")
+  //                 .attr("id", "tooltip")
+  //                 .style("visibility", "hidden")
 
-  const widthOfBar = (width - (2 * padding)) / items.length;
-
-  svg.selectAll("rect")
+  svg.selectAll("circle")
      .data(items)
      .enter()
-     .append("rect")
-     .attr("class", "bar")
-     .attr("width", `${widthOfBar}`)
-     .attr("data-date", item => item[0])
-     .attr("data-gdp", item => item[1])
-     .attr("x", (item, index) => xScale(index))
-     .attr("y", (item) => (height - padding) - heightScale(item[1]))
-     .on("mouseover", function(event, d) {
-        const index = d3.select(this.parentNode).selectAll("rect").nodes().indexOf(this); // Get the index of the current rect
-        const datesArray = parseInt(d[0]);
-        const textarea = `$${Math.round(d[1])} Billions`
-        const stringText = textarea +  " Y" + datesArray;
+     .append("circle")
+     .attr("class", "dot")
+     .attr("data-xvalue", item => item["Year"])
+     .attr("data-yvalue", item => item["Time"])
+     .attr("cx", item => xAxisScale(item["Year"]))
+     .attr("cy", item => yAxisScale(parseFloat(item["Time"].replace(":","."))))
+     .attr("r", "5")
+    //  .on("mouseover", function(event, d) {
 
-        svg.select(`rect[data-date='${d[0]}']`).style("fill", "white")
-        
-          const item = d3.select(this).datum();
-        
-          tooltip.transition()
-                .style("visibility", "visible");
-          
-          if(index < items.length / 1.5)
-          {
-            tooltip.style("left", (event.pageX - 80) + "px").style("top", (event.pageY - 100) + "px");
-          } else {
-            tooltip.style("left", (event.pageX - 350) + "px").style("top", (event.pageY -50) + "px");
-          }
-        
-          tooltip.text(stringText);
-        
-          document.querySelector("#tooltip").setAttribute("data-date", item[0]);
-      })   
-      .on("mouseout", (event, d) => {
-        svg.select(`rect[data-date='${d[0]}']`)
-           .style("fill", "black")
-          tooltip.transition()
-                 .style("visibility", "hidden");
-      })      
-     .attr("height", (item) => heightScale(item[1]));
+    //     // const index = d3.select(this.parentNode).selectAll("rect").nodes().indexOf(this); // Get the index of the current rect
+    //     // const datesArray = parseInt(d[0]);
+    //     // const textarea = `$${Math.round(d[1])} Billions`
+    //     // const stringText = textarea +  " Y" + datesArray;
+
+    //     const item = d3.select(this).datum();
+      
+    //     tooltip.transition()
+    //           .style("visibility", "visible");
+
+      
+    //     // tooltip.text(stringText);
+      
+    //     // document.querySelector("#tooltip").setAttribute("data-date", item[0]);
+    //   })   
+    //   .on("mouseout", (event, d) => {
+    //       tooltip.transition()
+    //              .style("visibility", "hidden");
+    //   })      
 }
 
-d3.json('https://raw.githubusercontent.com/FreeCodeCamp/ProjectReferenceData/master/GDP-data.json')
+d3.json('https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json')
   .then(data => {
-    items = data.data;
+    items = data;
+    console.log(items)
     drawCanvas();
     generateScales();
     generateAxes();
-    generateBars();
+    generateDots();
   })
