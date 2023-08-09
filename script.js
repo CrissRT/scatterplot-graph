@@ -23,39 +23,35 @@ function drawCanvas() {
      .text("Doping in Professional Bicycle Racing");
 }
 
-function generateScales() {
-  // heightScale = d3.scaleLinear()
-  //                 .domain([0, d3.max(items, (d) => d[1])])
-  //                 .range([0, height - 2 * padding]);
-
-  // xScale = d3.scaleLinear()
-  //            .domain([0, items.length - 1])
-  //            .range([padding, width - padding]);                 
-                
-  const yearArray = items.map((d) => d["Year"]);
-  const minutesArray = items.map(d =>parseFloat(d["Time"].replace(":",".")));
-  // const dateObjectsArray = yearArray.map(year => new Date(year, 0, 1));
-
-  // console.log("years",dateObjectsArray ,"minutes", minutesArray)
+function generateScales() {      
+  // X Axis constants
+  const minYear = d3.min(items, item => item["Year"]) - 1;//yearValues
+  const maxYear = d3.max(items, item => item["Year"]) + 1;//yearValues
+  
+  // Y Axis Constants
+  const minMinuteSecond = d3.min(items, item => new Date(item["Seconds"] * 1000));
+  const maxMinuteSecond = d3.max(items, item => new Date(item["Seconds"] * 1000));
 
   xAxisScale = d3.scaleLinear()
-                  .domain([d3.min(yearArray) - 1, d3.max(yearArray)])
+                  .domain([minYear, maxYear])
                   .range([padding, width - padding]);
                 
-  yAxisScale = d3.scaleLinear()
-                  .domain([d3.max(minutesArray), d3.min(minutesArray)])
-                  .range([height - padding, padding]);                 
+  yAxisScale = d3.scaleTime()
+                  .domain([maxMinuteSecond, minMinuteSecond])
+                  .range([height - padding, padding]); 
+                  
 }
 
 function generateAxes() {
-  let xAxis = d3.axisBottom(xAxisScale);
+  const customTimeFormat = d3.timeFormat("%M:%S");;
+  
+  let yAxis = d3.axisLeft(yAxisScale).tickFormat(customTimeFormat);
+  let xAxis = d3.axisBottom(xAxisScale).tickFormat(d3.format("d"));
 
   svg.append("g")
      .call(xAxis)
      .attr("id", "x-axis")
      .attr('transform', `translate(0, ${height - padding})`);
-
-  let yAxis = d3.axisLeft(yAxisScale);
 
   svg.append("g")
      .call(yAxis)
@@ -64,10 +60,10 @@ function generateAxes() {
 }
 
 function generateDots() {
-  // let tooltip = d3.select("#stat-container")
-  //                 .append("div")
-  //                 .attr("id", "tooltip")
-  //                 .style("visibility", "hidden")
+  let tooltip = d3.select("#stat-container")
+                  .append("div")
+                  .attr("id", "tooltip")
+                  .style("visibility", "hidden")
 
   svg.selectAll("circle")
      .data(items)
@@ -75,39 +71,69 @@ function generateDots() {
      .append("circle")
      .attr("class", "dot")
      .attr("data-xvalue", item => item["Year"])
-     .attr("data-yvalue", item => item["Time"])
+     .attr("data-yvalue", item => new Date(item["Seconds"] * 1000))
      .attr("cx", item => xAxisScale(item["Year"]))
-     .attr("cy", item => yAxisScale(parseFloat(item["Time"].replace(":","."))))
+     .attr("cy", item => yAxisScale(new Date(item["Seconds"] * 1000)))
      .attr("r", "5")
-    //  .on("mouseover", function(event, d) {
+     .attr("fill", item => {
+        if(item["Doping"] === "")
+          return "red";
+        else 
+          return "blue";
+     })
+     .on("mouseover", function(event, data) {
+        console.log(event, data)      
+        tooltip.style("left", (event.clientX - 80) + "px").style("top", (event.pageY - 100) + "px");
+        tooltip.transition().style("visibility", "visible");
 
-    //     // const index = d3.select(this.parentNode).selectAll("rect").nodes().indexOf(this); // Get the index of the current rect
-    //     // const datesArray = parseInt(d[0]);
-    //     // const textarea = `$${Math.round(d[1])} Billions`
-    //     // const stringText = textarea +  " Y" + datesArray;
+        let tooltipContent = `${data["Name"]}: ${data["Nationality"]}<br>
+                              Year: ${data["Year"]}, Time: ${data["Time"]}`;
 
-    //     const item = d3.select(this).datum();
-      
-    //     tooltip.transition()
-    //           .style("visibility", "visible");
+        if(data["Doping"] !== "")
+          tooltipContent += `<br><br>${data["Doping"]}`;
 
+        tooltip.html(tooltipContent)
       
-    //     // tooltip.text(stringText);
-      
-    //     // document.querySelector("#tooltip").setAttribute("data-date", item[0]);
-    //   })   
-    //   .on("mouseout", (event, d) => {
-    //       tooltip.transition()
-    //              .style("visibility", "hidden");
-    //   })      
+        document.querySelector("#tooltip").setAttribute("data-year", data["Year"]);
+      })   
+      .on("mouseout", (event, d) => {
+          tooltip.transition().style("visibility", "hidden");
+      })      
+}
+
+function generateLegend() {
+  const legendData = ['No doping allegations', 'Riders with doping allegations'];
+  const colorScale = d3.scaleOrdinal().range(['red', 'blue']);
+
+  const legend = svg.append('g')
+      .attr('id', 'legend')
+      .attr('transform', `translate(${width - 250}, ${height / 2.5})`);
+
+  const legendItems = legend.selectAll('.legend-item')
+      .data(legendData)
+      .enter()
+      .append('g')
+      .attr('class', 'legend-item')
+      .attr('transform', (d, i) => `translate(0, ${i * 20})`);
+
+  legendItems.append('rect')
+      .attr('width', 10)
+      .attr('height', 10)
+      .attr('fill', d => colorScale(d));
+
+  legendItems.append('text')
+      .attr('x', 15)
+      .attr('y', 8)
+      .text(d => d);
 }
 
 d3.json('https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json')
   .then(data => {
     items = data;
-    console.log(items)
+    // console.log(items)
     drawCanvas();
     generateScales();
     generateAxes();
     generateDots();
+    generateLegend();
   })
